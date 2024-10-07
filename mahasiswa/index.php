@@ -1,3 +1,11 @@
+<?php
+require_once '../conn.php';
+startSecureSession();
+requireLogin();
+
+$username = $_SESSION['username'];
+?>
+
 <!DOCTYPE html>
 <html lang="en">
 
@@ -5,20 +13,17 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Mahasiswa</title>
+    <link rel="stylesheet" href="menu.css">
     <link href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css" rel="stylesheet">
     <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.5.1/jquery.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@10"></script>
-    <style>
-        .mahasiswa-img {
-            width: 100px;
-            height: 100px;
-            object-fit: cover;
-        }
-    </style>
+    <script src="https://unpkg.com/feather-icons"></script>
 </head>
 
 <body class="container mt-5">
-
+    <?php
+    require "../menu.html";
+    ?>
     <h2 class="mb-4">Data Mahasiswa</h2>
     <button class="btn btn-primary mb-3" id="btnAdd">Tambah Mahasiswa</button>
     <div class="form-group">
@@ -28,8 +33,8 @@
     <table class="table table-bordered">
         <thead>
             <tr>
-                <th>Nama</th>
                 <th>NIM</th>
+                <th>Nama</th>
                 <th>Email</th>
                 <th>Foto</th>
                 <th>Aksi</th>
@@ -38,7 +43,6 @@
         <tbody id="dataMahasiswa"></tbody>
     </table>
 
-    <!-- Modal -->
     <div class="modal fade" id="mahasiswaModal" tabindex="-1" role="dialog" aria-labelledby="mahasiswaModalLabel" aria-hidden="true">
         <div class="modal-dialog" role="document">
             <div class="modal-content">
@@ -53,20 +57,20 @@
                         <input type="hidden" name="action" value="save">
                         <input type="hidden" name="id" id="id">
                         <div class="form-group">
-                            <label for="nama">Nama:</label>
-                            <input type="text" class="form-control" name="nama" id="nama" required>
-                        </div>
-                        <div class="form-group">
                             <label for="nim">NIM:</label>
                             <input type="text" class="form-control" name="nim" id="nim" required>
                         </div>
                         <div class="form-group">
+                            <label for="nama">Nama:</label>
+                            <input type="text" class="form-control" name="nama" id="nama" required disabled>
+                        </div>
+                        <div class="form-group">
                             <label for="email">Email:</label>
-                            <input type="text" class="form-control" name="email" id="email" required>
+                            <input type="text" class="form-control" name="email" id="email" required disabled>
                         </div>
                         <div class="form-group">
                             <label for="foto">Foto:</label>
-                            <input type="file" class="form-control-file" name="foto" id="foto" accept="image/*">
+                            <input type="file" class="form-control-file" name="foto" id="foto" accept="image/*" disabled>
                         </div>
                         <div id="previewContainer" class="mb-3" style="display: none;">
                             <img id="imagePreview" src="#" alt="Preview" class="mahasiswa-img">
@@ -101,8 +105,8 @@
                         if (response.length > 0) {
                             response.forEach(function(row) {
                                 html += `<tr>
-                                    <td>${escapeHtml(row.nama)}</td>
                                     <td>${escapeHtml(row.nim)}</td>
+                                    <td>${escapeHtml(row.nama)}</td>
                                     <td>${escapeHtml(row.email)}</td>
                                     <td><img src="../photo/${escapeHtml(row.foto)}" class="mahasiswa-img"></td>
                                     <td>
@@ -130,6 +134,18 @@
 
             $('#formMahasiswa').submit(function(e) {
                 e.preventDefault();
+                var nim = $('#nim').val();
+
+                var nimPattern = /^[A-Za-z0-9]{3}\.[0-9]{4}\.[0-9]{5}$/;
+                if (!nimPattern.test(nim)) {
+                    Swal.fire({
+                        icon: 'error',
+                        title: 'Error',
+                        text: 'NIM harus dalam format ***.****.*****!',
+                    });
+                    return;
+                }
+
                 var formData = new FormData(this);
 
                 $.ajax({
@@ -176,8 +192,8 @@
                     dataType: 'json',
                     success: function(data) {
                         $('#id').val(data.id);
-                        $('#nama').val(data.nama);
                         $('#nim').val(data.nim);
+                        $('#nama').val(data.nama);
                         $('#email').val(data.email);
                         if (data.foto) {
                             $('#previewContainer').show();
@@ -232,31 +248,14 @@
                 });
             });
 
-            $('#foto').change(function() {
-                previewImage(this);
-            });
-
             function resetForm() {
                 $('#formMahasiswa')[0].reset();
                 $('#id').val('');
                 $('#previewContainer').hide();
-                $('#imagePreview').attr('src', '#');
             }
 
-            function previewImage(input) {
-                if (input.files && input.files[0]) {
-                    var reader = new FileReader();
-                    reader.onload = function(e) {
-                        $('#previewContainer').show();
-                        $('#imagePreview').attr('src', e.target.result);
-                    }
-                    reader.readAsDataURL(input.files[0]);
-                }
-            }
-
-            function escapeHtml(unsafe) {
-                return unsafe
-                    .replace(/&/g, "&amp;")
+            function escapeHtml(text) {
+                return text.replace(/&/g, "&amp;")
                     .replace(/</g, "&lt;")
                     .replace(/>/g, "&gt;")
                     .replace(/"/g, "&quot;")

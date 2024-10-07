@@ -30,12 +30,18 @@ function handleFileUpload($file)
         respondWithJson(['error' => 'Gagal mengunggah file!'], 500);
     }
 
-    return $new_file_name; 
+    return $new_file_name;
 }
 
-function getImagePath($filename) {
+function getImagePath($filename)
+{
     global $target_dir;
     return $target_dir . $filename;
+}
+
+function validateNim($nim)
+{
+    return preg_match('/^[A-Za-z0-9]{3}\.[0-9]{4}\.[0-9]{5}$/', $nim);
 }
 
 $conn = getDbConnection();
@@ -62,6 +68,21 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
             $email = $_POST['email'] ?? '';
             $new_filename = isset($_FILES['foto']) ? handleFileUpload($_FILES['foto']) : '';
 
+            if (!validateNim($nim)) {
+                respondWithJson(['error' => 'NIM harus dalam format A12.2022.06905!'], 400);
+            }
+
+            $stmt = $conn->prepare("SELECT id FROM mhs WHERE nim = ?" . ($id ? " AND id != ?" : ""));
+            if ($id) {
+                $stmt->bind_param("si", $nim, $id);
+            } else {
+                $stmt->bind_param("s", $nim);
+            }
+            $stmt->execute();
+            if ($stmt->get_result()->num_rows > 0) {
+                respondWithJson(['error' => 'NIM sudah ada!'], 400);
+            }
+
             if ($id) {
                 $sql = "UPDATE mhs SET nama=?, nim=?, email=?";
                 $params = [$nama, $nim, $email];
@@ -69,17 +90,6 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
                 if ($new_filename) {
                     $sql .= ", foto=?";
                     $params[] = $new_filename;
-
-                    $stmt = $conn->prepare("SELECT foto FROM mhs WHERE id=?");
-                    $stmt->bind_param("i", $id);
-                    $stmt->execute();
-                    $old_foto = $stmt->get_result()->fetch_assoc()['foto'];
-                    if ($old_foto) {
-                        $old_foto_path = getImagePath($old_foto);
-                        if (file_exists($old_foto_path)) {
-                            unlink($old_foto_path);
-                        }
-                    }
                 }
 
                 $sql .= " WHERE id=?";
@@ -112,12 +122,12 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
 
         case 'delete':
             $id = $_POST['id'];
-            
+
             $stmt = $conn->prepare("SELECT foto FROM mhs WHERE id=?");
             $stmt->bind_param("i", $id);
             $stmt->execute();
             $foto = $stmt->get_result()->fetch_assoc()['foto'];
-            
+
             if ($foto) {
                 $foto_path = getImagePath($foto);
                 if (file_exists($foto_path)) {
@@ -132,6 +142,20 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
                 respondWithJson(['message' => 'Data berhasil dihapus!']);
             } else {
                 respondWithJson(['error' => $conn->error], 500);
+            }
+            break;
+        case 'check_nim':
+            $nim = $_POST['nim'] ?? '';
+
+            $stmt = $conn->prepare("SELECT id FROM mhs WHERE nim = ?");
+            $stmt->bind_param("s", $nim);
+            $stmt->execute();
+            $result = $stmt->get_result();
+
+            if ($result->num_rows > 0) {
+                respondWithJson(['exists' => true]);
+            } else {
+                respondWithJson(['exists' => false]);
             }
             break;
 
