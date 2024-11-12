@@ -13,11 +13,11 @@ $username = $_SESSION['username'];
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Mahasiswa</title>
-    <link rel="stylesheet" href="menu.css">
     <link href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css" rel="stylesheet">
     <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.5.1/jquery.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@10"></script>
     <script src="https://unpkg.com/feather-icons"></script>
+    <link rel="stylesheet" href="../menu.css">
 </head>
 
 <body class="container mt-5">
@@ -43,6 +43,8 @@ $username = $_SESSION['username'];
         <tbody id="dataMahasiswa"></tbody>
     </table>
 
+    <div id="pagination" class="mb-3"></div>
+
     <div class="modal fade" id="mahasiswaModal" tabindex="-1" role="dialog" aria-labelledby="mahasiswaModalLabel" aria-hidden="true">
         <div class="modal-dialog" role="document">
             <div class="modal-content">
@@ -62,15 +64,15 @@ $username = $_SESSION['username'];
                         </div>
                         <div class="form-group">
                             <label for="nama">Nama:</label>
-                            <input type="text" class="form-control" name="nama" id="nama" required disabled>
+                            <input type="text" class="form-control" name="nama" id="nama" required>
                         </div>
                         <div class="form-group">
                             <label for="email">Email:</label>
-                            <input type="text" class="form-control" name="email" id="email" required disabled>
+                            <input type="text" class="form-control" name="email" id="email" required>
                         </div>
                         <div class="form-group">
                             <label for="foto">Foto:</label>
-                            <input type="file" class="form-control-file" name="foto" id="foto" accept="image/*" disabled>
+                            <input type="file" class="form-control-file" name="foto" id="foto" accept="image/*">
                         </div>
                         <div id="previewContainer" class="mb-3" style="display: none;">
                             <img id="imagePreview" src="#" alt="Preview" class="mahasiswa-img">
@@ -89,99 +91,26 @@ $username = $_SESSION['username'];
     <script src="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/js/bootstrap.min.js"></script>
     <script>
         $(document).ready(function() {
+            let currentPage = 1;
+            let isEditMode = false;
+
             loadData();
 
-            function loadData(query = '') {
-                $.ajax({
-                    url: 'proses.php',
-                    method: 'POST',
-                    data: {
-                        action: 'load',
-                        query: query
-                    },
-                    dataType: 'json',
-                    success: function(response) {
-                        let html = '';
-                        if (response.length > 0) {
-                            response.forEach(function(row) {
-                                html += `<tr>
-                                    <td>${escapeHtml(row.nim)}</td>
-                                    <td>${escapeHtml(row.nama)}</td>
-                                    <td>${escapeHtml(row.email)}</td>
-                                    <td><img src="../photo/${escapeHtml(row.foto)}" class="mahasiswa-img"></td>
-                                    <td>
-                                        <button class="btn btn-sm btn-primary edit" data-id="${row.id}">Edit</button>
-                                        <button class="btn btn-sm btn-danger delete" data-id="${row.id}">Hapus</button>
-                                    </td>
-                                </tr>`;
-                            });
-                        } else {
-                            html = '<tr><td colspan="5" class="text-center">Tidak ada data ditemukan</td></tr>';
-                        }
-                        $('#dataMahasiswa').html(html);
-                    }
-                });
-            }
-
+            // Show Add modal and set to Add mode
             $('#btnAdd').click(function() {
                 resetForm();
+                isEditMode = false;
                 $('#mahasiswaModal').modal('show');
+                $('#nim').prop('disabled', false); // Enable NIM field in Add mode
             });
-
             $('#btnSave').click(function() {
                 $('#formMahasiswa').submit();
             });
 
-            $('#formMahasiswa').submit(function(e) {
-                e.preventDefault();
-                var nim = $('#nim').val();
-
-                var nimPattern = /^[A-Za-z0-9]{3}\.[0-9]{4}\.[0-9]{5}$/;
-                if (!nimPattern.test(nim)) {
-                    Swal.fire({
-                        icon: 'error',
-                        title: 'Error',
-                        text: 'NIM harus dalam format ***.****.*****!',
-                    });
-                    return;
-                }
-
-                var formData = new FormData(this);
-
-                $.ajax({
-                    url: 'proses.php',
-                    type: 'POST',
-                    data: formData,
-                    contentType: false,
-                    processData: false,
-                    dataType: 'json',
-                    success: function(response) {
-                        if (response.error) {
-                            Swal.fire({
-                                icon: 'error',
-                                title: 'Error',
-                                text: response.error,
-                            });
-                        } else {
-                            $('#mahasiswaModal').modal('hide');
-                            Swal.fire({
-                                icon: 'success',
-                                title: 'Sukses',
-                                text: response.message,
-                            });
-                            loadData();
-                        }
-                    }
-                });
-            });
-
-            $('#search').on('keyup', function() {
-                var query = $(this).val();
-                loadData(query);
-            });
-
             $(document).on('click', '.edit', function() {
                 var id = $(this).data('id');
+                isEditMode = true;
+                
                 $.ajax({
                     url: 'proses.php',
                     method: 'POST',
@@ -195,6 +124,8 @@ $username = $_SESSION['username'];
                         $('#nim').val(data.nim);
                         $('#nama').val(data.nama);
                         $('#email').val(data.email);
+                        $('#nim').prop('disabled', true); // Disable NIM field in Edit mode
+
                         if (data.foto) {
                             $('#previewContainer').show();
                             $('#imagePreview').attr('src', `../photo/${data.foto}`);
@@ -206,6 +137,166 @@ $username = $_SESSION['username'];
                 });
             });
 
+            // Handle form submission for Add/Edit
+            $('#formMahasiswa').submit(function(e) {
+                e.preventDefault();
+                console.log('Form is being submitted'); // Check if this logs
+
+                var nim = $('#nim').val();
+                var nimPattern = /^[A-Za-z0-9]{3}\.[0-9]{4}\.[0-9]{5}$/;
+
+                if (!isEditMode && !nimPattern.test(nim)) {
+                    Swal.fire({
+                        icon: 'error',
+                        title: 'Error',
+                        text: 'NIM harus dalam format A12.2022.06095!',
+                    });
+                    return;
+                }
+
+                var formData = new FormData($('#formMahasiswa')[0]);
+                $.ajax({
+                    url: 'proses.php',
+                    type: 'POST',
+                    data: formData,
+                    contentType: false,
+                    processData: false,
+                    dataType: 'json',
+                    success: function(response) {
+                        if (response.error) {
+                            Swal.fire({
+                                icon: 'error',
+                                title: 'Error',
+                                text: response.error
+                            });
+                        } else {
+                            $('#mahasiswaModal').modal('hide');
+                            Swal.fire({
+                                icon: 'success',
+                                title: 'Sukses',
+                                text: response.message
+                            });
+                            loadData();
+                        }
+                    }
+                });
+            });
+
+            // Load data with pagination
+            function loadData(query = '', page = 1) {
+                $.ajax({
+                    url: 'proses.php',
+                    method: 'POST',
+                    data: {
+                        action: 'load',
+                        query: query,
+                        page: page
+                    },
+                    dataType: 'json',
+                    success: function(response) {
+                        let html = '';
+                        if (response.data.length > 0) {
+                            response.data.forEach(function(row) {
+                                html += `<tr>
+                                <td>${escapeHtml(row.nim)}</td>
+                                <td>${escapeHtml(row.nama)}</td>
+                                <td>${escapeHtml(row.email)}</td>
+                                <td><img src="../photo/${escapeHtml(row.foto)}" class="mahasiswa-img" height = 90px></td>
+                                <td>
+                                    <button class="btn btn-sm btn-primary edit" data-id="${row.id}">Edit</button>
+                                    <button class="btn btn-sm btn-danger delete" data-id="${row.id}">Hapus</button>
+                                </td>
+                            </tr>`;
+                            });
+                        } else {
+                            html = '<tr><td colspan="5" class="text-center">Tidak ada data ditemukan</td></tr>';
+                        }
+                        $('#dataMahasiswa').html(html);
+                        setupPagination(response.totalPages, page);
+                    }
+                });
+            }
+
+            // Pagination setup
+            function setupPagination(totalPages, currentPage) {
+                let paginationHtml = '';
+                for (let i = 1; i <= totalPages; i++) {
+                    paginationHtml += `<button class="btn btn-link page-link" data-page="${i}">${i}</button>`;
+                }
+                $('#pagination').html(paginationHtml);
+                $('.page-link').removeClass('active');
+                $(`.page-link[data-page="${currentPage}"]`).addClass('active');
+            }
+
+            $(document).on('click', '.page-link', function() {
+                currentPage = $(this).data('page');
+                loadData($('#search').val(), currentPage);
+            });
+
+            // Search functionality
+            $('#search').on('keyup', function() {
+                var query = $(this).val();
+                loadData(query, currentPage);
+            });
+
+            // NIM auto-formatting
+            $('#nim').on('input', function() {
+                let nim = $(this).val().replace(/[^A-Za-z0-9]/g, '');
+                if (nim.length > 3 && nim.length <= 7) {
+                    nim = nim.slice(0, 3) + '.' + nim.slice(3);
+                } else if (nim.length > 7) {
+                    nim = nim.slice(0, 3) + '.' + nim.slice(3, 7) + '.' + nim.slice(7, 12);
+                }
+                $(this).val(nim);
+            });
+
+            // NIM validation and duplication check
+            $('#nim').on('blur', function() {
+                var nim = $(this).val();
+                var nimPattern = /^[A-Za-z0-9]{3}\.[0-9]{4}\.[0-9]{5}$/;
+
+                if (!nimPattern.test(nim)) {
+                    Swal.fire({
+                        icon: 'error',
+                        title: 'Error',
+                        text: 'NIM harus dalam format A12.2022.06905!'
+                    });
+                    $('#nama, #email').prop('disabled', true);
+                    return;
+                }
+
+                $.ajax({
+                    url: 'proses.php',
+                    method: 'POST',
+                    data: {
+                        action: 'check_nim',
+                        nim: nim
+                    },
+                    dataType: 'json',
+                    success: function(response) {
+                        if (response.exists) {
+                            Swal.fire({
+                                icon: 'error',
+                                title: 'Error',
+                                text: 'NIM sudah ada!'
+                            });
+                            $('#nama, #email').prop('disabled', true);
+                        } else {
+                            $('#nama, #email').prop('disabled', false);
+                        }
+                    }
+                });
+            });
+
+            // Reset form fields
+            function resetForm() {
+                $('#formMahasiswa')[0].reset();
+                $('#id').val('');
+                $('#previewContainer').hide();
+                $('#nim').prop('disabled', false);
+            }
+
+            // Deletion functionality
             $(document).on('click', '.delete', function() {
                 var id = $(this).data('id');
                 Swal.fire({
@@ -232,13 +323,13 @@ $username = $_SESSION['username'];
                                     Swal.fire({
                                         icon: 'error',
                                         title: 'Error',
-                                        text: response.error,
+                                        text: response.error
                                     });
                                 } else {
                                     Swal.fire({
                                         icon: 'success',
                                         title: 'Sukses',
-                                        text: response.message,
+                                        text: response.message
                                     });
                                     loadData();
                                 }
@@ -248,12 +339,7 @@ $username = $_SESSION['username'];
                 });
             });
 
-            function resetForm() {
-                $('#formMahasiswa')[0].reset();
-                $('#id').val('');
-                $('#previewContainer').hide();
-            }
-
+            // Utility function to escape HTML
             function escapeHtml(text) {
                 return text.replace(/&/g, "&amp;")
                     .replace(/</g, "&lt;")
@@ -263,6 +349,7 @@ $username = $_SESSION['username'];
             }
         });
     </script>
+
 
 </body>
 

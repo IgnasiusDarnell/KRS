@@ -52,13 +52,35 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
     switch ($action) {
         case 'load':
             $query = $_POST['query'] ?? '';
-            $stmt = $conn->prepare("SELECT * FROM mhs WHERE nama LIKE ? OR nim LIKE ? ORDER BY id DESC");
+            $page = isset($_POST['page']) ? (int)$_POST['page'] : 1;
+            $limit = 5; // Number of records per page
+            $offset = ($page - 1) * $limit;
+
+            $stmt = $conn->prepare("SELECT * FROM mhs WHERE nama LIKE ? OR nim LIKE ? ORDER BY id DESC LIMIT ?, ?");
             $search = "%$query%";
-            $stmt->bind_param("ss", $search, $search);
+            $stmt->bind_param("ssii", $search, $search, $offset, $limit);
             $stmt->execute();
             $result = $stmt->get_result();
             $data = $result->fetch_all(MYSQLI_ASSOC);
-            respondWithJson($data);
+
+            // Get total records for pagination
+            $stmt = $conn->prepare("SELECT COUNT(*) as total FROM mhs WHERE nama LIKE ? OR nim LIKE ?");
+            $stmt->bind_param("ss", $search, $search);
+            $stmt->execute();
+            $totalResult = $stmt->get_result()->fetch_assoc();
+            $totalRecords = $totalResult['total'];
+            $totalPages = ceil($totalRecords / $limit);
+
+            respondWithJson(['data' => $data, 'totalPages' => $totalPages]);
+            break;
+
+
+        case 'check_nim':
+            $nim = $_POST['nim'] ?? '';
+            $stmt = $conn->prepare("SELECT id FROM mhs WHERE nim = ?");
+            $stmt->bind_param("s", $nim);
+            $stmt->execute();
+            respondWithJson(['exists' => $stmt->get_result()->num_rows > 0]);
             break;
 
         case 'save':
@@ -68,24 +90,26 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
             $email = $_POST['email'] ?? '';
             $new_filename = isset($_FILES['foto']) ? handleFileUpload($_FILES['foto']) : '';
 
-            if (!validateNim($nim)) {
+            // For new entries, validate and save NIM
+            if (!$id && !validateNim($nim)) {
                 respondWithJson(['error' => 'NIM harus dalam format A12.2022.06905!'], 400);
             }
 
-            $stmt = $conn->prepare("SELECT id FROM mhs WHERE nim = ?" . ($id ? " AND id != ?" : ""));
-            if ($id) {
-                $stmt->bind_param("si", $nim, $id);
-            } else {
+            // Check for duplicate NIM only for new entries
+            if (!$id) {
+                $stmt = $conn->prepare("SELECT id FROM mhs WHERE nim = ?");
                 $stmt->bind_param("s", $nim);
-            }
-            $stmt->execute();
-            if ($stmt->get_result()->num_rows > 0) {
-                respondWithJson(['error' => 'NIM sudah ada!'], 400);
+                $stmt->execute();
+                if ($stmt->get_result()->num_rows > 0) {
+                    respondWithJson(['error' => 'NIM sudah ada!'], 400);
+                }
             }
 
+            // If editing, do not update NIM
             if ($id) {
-                $sql = "UPDATE mhs SET nama=?, nim=?, email=?";
-                $params = [$nama, $nim, $email];
+                // Update query without NIM
+                $sql = "UPDATE mhs SET nama=?, email=?";
+                $params = [$nama, $email];
 
                 if ($new_filename) {
                     $sql .= ", foto=?";
@@ -97,6 +121,7 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
                 $stmt = $conn->prepare($sql);
                 $stmt->bind_param(str_repeat('s', count($params)), ...$params);
             } else {
+                // Insert new entry with NIM
                 $stmt = $conn->prepare("INSERT INTO mhs (nama, nim, email, foto) VALUES (?, ?, ?, ?)");
                 $stmt->bind_param("ssss", $nama, $nim, $email, $new_filename);
             }
@@ -107,6 +132,8 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
                 respondWithJson(['error' => $conn->error], 500);
             }
             break;
+
+
 
         case 'get_data':
             $id = $_POST['id'];
@@ -146,7 +173,6 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
             break;
         case 'check_nim':
             $nim = $_POST['nim'] ?? '';
-
             $stmt = $conn->prepare("SELECT id FROM mhs WHERE nim = ?");
             $stmt->bind_param("s", $nim);
             $stmt->execute();
