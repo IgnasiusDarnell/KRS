@@ -1,27 +1,54 @@
 <nav id="sidebar" class="col-md-3 col-lg-2 d-md-block bg-light sidebar">
-  <div class="position-sticky">
-      <div class="sidebar-header">
-          <h3>Student Management</h3>
-      </div>
-      <ul class="nav flex-column">
-          <li class="nav-item">
-              <a class="nav-link active" href="index.php">
-                  <i data-feather="home"></i>
-                  <span>Home</span>
-              </a>
-          </li>
-          <li class="nav-item">
-              <a class="nav-link" href="index.php">
-                  <i data-feather="users"></i>
-                  <span>Mahasiswa</span>
-              </a>
-          </li>
-          <li class="nav-item">
-              <a class="nav-link" href="../auth/logout.php">
-                  <i data-feather="log-out"></i>
-                  <span>Logout</span>
-              </a>
-          </li>
-      </ul>
-  </div>
+    <div class="position-sticky">
+        <div class="sidebar-header text-center">
+            <h3>KRS</h3>
+        </div>
+        <ul class="nav flex-column">
+            <li class="nav-item">
+                <a class="nav-link <?= ($current_page == 'index.php') ? 'active' : '' ?>" href="mahasiswa/index.php">
+                    <i data-feather="home"></i>
+                    <span>Home</span>
+                </a>
+            </li>
+            <li class="nav-item">
+                <a class="nav-link <?= ($current_page == 'Mahasiswa index.php') ? 'active' : '' ?>"
+                    href="/udinus_krs/mahasiswa/index.php">
+                    <i data-feather="users"></i>
+                    <span>Mahasiswa</span>
+                </a>
+            </li>
+            <li class="nav-item">
+                <a class="nav-link <?= ($current_page == 'Dosen index.php') ? 'active' : '' ?>"
+                    href="/udinus_krs/dosen/index.php">
+                    <i data-feather="users"></i>
+                    <span>Dosen</span>
+                </a>
+            </li>
+
+
+            <li class="nav-item">
+                <a class="nav-link <?= ($current_page == 'Matkul index.php') ? 'active' : '' ?>"
+                    href="/udinus_krs/matkul/index.php">
+                    <i data-feather="users"></i>
+                    <span>Matkul</span>
+                </a>
+            </li>
+
+            
+            <li class="nav-item">
+                <a class="nav-link <?= ($current_page == 'Kultawar index.php') ? 'active' : '' ?>"
+                    href="/udinus_krs/Kultawar/index.php">
+                    <i data-feather="users"></i>
+                    <span>Kultawar</span>
+                </a>
+            </li>
+
+            <li class="nav-item">
+                <a class="nav-link <?= ($current_page == 'logout.php') ? 'active' : '' ?>" href="../auth/logout.php">
+                    <i data-feather="log-out"></i>
+                    <span>Logout</span>
+                </a>
+            </li>
+        </ul>
+    </div>
 </nav>

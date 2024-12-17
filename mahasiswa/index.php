@@ -2,7 +2,7 @@
 require_once '../conn.php';
 startSecureSession();
 requireLogin();
-
+$current_page = 'Mahasiswa ' . basename($_SERVER['PHP_SELF']);
 $username = $_SESSION['username'];
 ?>
 
@@ -24,11 +24,24 @@ $username = $_SESSION['username'];
     <?php
     require "../menu.html";
     ?>
+
     <h2 class="mb-4">Data Mahasiswa</h2>
     <button class="btn btn-primary mb-3" id="btnAdd">Tambah Mahasiswa</button>
+    <button class="btn btn-danger mb-3" onclick="window.location.href='generate_pdf.php'">Cetak PDF</button>
     <div class="form-group">
         <input type="text" class="form-control" id="search" placeholder="Cari mahasiswa...">
     </div>
+
+    <div class="form-group">
+        <label for="recordsPerPage">Records per page:</label>
+        <select id="recordsPerPage" class="form-control" style="width: auto; display: inline-block;">
+            <option value="5">5</option>
+            <option value="10">10</option>
+            <option value="15">15</option>
+            <option value="20">20</option>
+        </select>
+    </div>
+
 
     <table class="table table-bordered">
         <thead>
@@ -43,7 +56,7 @@ $username = $_SESSION['username'];
         <tbody id="dataMahasiswa"></tbody>
     </table>
 
-    <div id="pagination" class="mb-3"></div>
+    <div id="pagination" class="mb-3" style="display: flex; gap:5px"></div>
 
     <div class="modal fade" id="mahasiswaModal" tabindex="-1" role="dialog" aria-labelledby="mahasiswaModalLabel" aria-hidden="true">
         <div class="modal-dialog" role="document">
@@ -86,147 +99,88 @@ $username = $_SESSION['username'];
             </div>
         </div>
     </div>
+    <div id="currentPageInfo" class="text-right mt-3"></div>
 
     <script src="https://cdn.jsdelivr.net/npm/popper.js@1.16.1/dist/umd/popper.min.js"></script>
     <script src="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/js/bootstrap.min.js"></script>
     <script>
         $(document).ready(function() {
             let currentPage = 1;
-            let isEditMode = false;
+            let recordsPerPage = $('#recordsPerPage').val();
 
-            loadData();
-
-            // Show Add modal and set to Add mode
-            $('#btnAdd').click(function() {
-                resetForm();
-                isEditMode = false;
-                $('#mahasiswaModal').modal('show');
-                $('#nim').prop('disabled', false); // Enable NIM field in Add mode
-            });
-            $('#btnSave').click(function() {
-                $('#formMahasiswa').submit();
+            // Handle dropdown change
+            $('#recordsPerPage').change(function() {
+                recordsPerPage = $(this).val();
+                currentPage = 1;
+                loadData($('#search').val(), currentPage, recordsPerPage);
             });
 
-            $(document).on('click', '.edit', function() {
-                var id = $(this).data('id');
-                isEditMode = true;
-                
-                $.ajax({
-                    url: 'proses.php',
-                    method: 'POST',
-                    data: {
-                        action: 'get_data',
-                        id: id
-                    },
-                    dataType: 'json',
-                    success: function(data) {
-                        $('#id').val(data.id);
-                        $('#nim').val(data.nim);
-                        $('#nama').val(data.nama);
-                        $('#email').val(data.email);
-                        $('#nim').prop('disabled', true); // Disable NIM field in Edit mode
-
-                        if (data.foto) {
-                            $('#previewContainer').show();
-                            $('#imagePreview').attr('src', `../photo/${data.foto}`);
-                        } else {
-                            $('#previewContainer').hide();
-                        }
-                        $('#mahasiswaModal').modal('show');
-                    }
-                });
+            // Search input handler
+            $('#search').on('input', function() {
+                loadData($(this).val(), currentPage, recordsPerPage);
             });
 
-            // Handle form submission for Add/Edit
-            $('#formMahasiswa').submit(function(e) {
-                e.preventDefault();
-                console.log('Form is being submitted'); // Check if this logs
-
-                var nim = $('#nim').val();
-                var nimPattern = /^[A-Za-z0-9]{3}\.[0-9]{4}\.[0-9]{5}$/;
-
-                if (!isEditMode && !nimPattern.test(nim)) {
-                    Swal.fire({
-                        icon: 'error',
-                        title: 'Error',
-                        text: 'NIM harus dalam format A12.2022.06095!',
-                    });
-                    return;
-                }
-
-                var formData = new FormData($('#formMahasiswa')[0]);
-                $.ajax({
-                    url: 'proses.php',
-                    type: 'POST',
-                    data: formData,
-                    contentType: false,
-                    processData: false,
-                    dataType: 'json',
-                    success: function(response) {
-                        if (response.error) {
-                            Swal.fire({
-                                icon: 'error',
-                                title: 'Error',
-                                text: response.error
-                            });
-                        } else {
-                            $('#mahasiswaModal').modal('hide');
-                            Swal.fire({
-                                icon: 'success',
-                                title: 'Sukses',
-                                text: response.message
-                            });
-                            loadData();
-                        }
-                    }
-                });
-            });
-
-            // Load data with pagination
-            function loadData(query = '', page = 1) {
+            // Load data function
+            function loadData(query = '', page = 1, limit = recordsPerPage) {
                 $.ajax({
                     url: 'proses.php',
                     method: 'POST',
                     data: {
                         action: 'load',
                         query: query,
-                        page: page
+                        page: page,
+                        limit: limit
                     },
                     dataType: 'json',
                     success: function(response) {
-                        let html = '';
-                        if (response.data.length > 0) {
-                            response.data.forEach(function(row) {
-                                html += `<tr>
-                                <td>${escapeHtml(row.nim)}</td>
-                                <td>${escapeHtml(row.nama)}</td>
-                                <td>${escapeHtml(row.email)}</td>
-                                <td><img src="../photo/${escapeHtml(row.foto)}" class="mahasiswa-img" height = 90px></td>
-                                <td>
-                                    <button class="btn btn-sm btn-primary edit" data-id="${row.id}">Edit</button>
-                                    <button class="btn btn-sm btn-danger delete" data-id="${row.id}">Hapus</button>
-                                </td>
-                            </tr>`;
-                            });
-                        } else {
-                            html = '<tr><td colspan="5" class="text-center">Tidak ada data ditemukan</td></tr>';
-                        }
-                        $('#dataMahasiswa').html(html);
+                        renderTable(response.data);
                         setupPagination(response.totalPages, page);
                     }
                 });
             }
 
-            // Pagination setup
+            function renderTable(data) {
+                let html = '';
+                if (data.length > 0) {
+                    data.forEach(function(row) {
+                        html += `
+                    <tr>
+                        <td>${escapeHtml(row.nim)}</td>
+                        <td>${escapeHtml(row.nama)}</td>
+                        <td>${escapeHtml(row.email)}</td>
+                        <td><img src="../photo/${escapeHtml(row.foto)}" class="mahasiswa-img" height="90px"></td>
+                        <td>
+                            <button class="btn btn-sm btn-primary edit" data-id="${row.id}">Edit</button>
+                            <button class="btn btn-sm btn-danger delete" data-id="${row.id}">Hapus</button>
+                        </td>
+                    </tr>`;
+                    });
+                } else {
+                    html = '<tr><td colspan="5" class="text-center">Tidak ada data ditemukan</td></tr>';
+                }
+                $('#dataMahasiswa').html(html);
+            }
+
             function setupPagination(totalPages, currentPage) {
                 let paginationHtml = '';
                 for (let i = 1; i <= totalPages; i++) {
-                    paginationHtml += `<button class="btn btn-link page-link" data-page="${i}">${i}</button>`;
+                    paginationHtml += `<button class="btn btn-link page-link ${i === currentPage ? 'active' : ''}" data-page="${i}">${i}</button>`;
                 }
                 $('#pagination').html(paginationHtml);
-                $('.page-link').removeClass('active');
-                $(`.page-link[data-page="${currentPage}"]`).addClass('active');
+
+                // Perbarui nomor halaman saat ini
+                $('#currentPageInfo').text(`Anda berada di halaman ${currentPage} dari ${totalPages} halaman`);
+
+                // Tambahkan event listener untuk tombol pagination
+                $('.page-link').click(function() {
+                    currentPage = $(this).data('page');
+                    loadData($('#search').val(), currentPage, recordsPerPage);
+                });
             }
+
+
+            // Initial load
+            loadData();
 
             $(document).on('click', '.page-link', function() {
                 currentPage = $(this).data('page');

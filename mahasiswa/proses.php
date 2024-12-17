@@ -53,27 +53,26 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
         case 'load':
             $query = $_POST['query'] ?? '';
             $page = isset($_POST['page']) ? (int)$_POST['page'] : 1;
-            $limit = 5; // Number of records per page
+            $limit = isset($_POST['limit']) ? (int)$_POST['limit'] : 5; // Default to 5 records per page
             $offset = ($page - 1) * $limit;
-
+        
             $stmt = $conn->prepare("SELECT * FROM mhs WHERE nama LIKE ? OR nim LIKE ? ORDER BY id DESC LIMIT ?, ?");
             $search = "%$query%";
             $stmt->bind_param("ssii", $search, $search, $offset, $limit);
             $stmt->execute();
             $result = $stmt->get_result();
             $data = $result->fetch_all(MYSQLI_ASSOC);
-
-            // Get total records for pagination
+        
             $stmt = $conn->prepare("SELECT COUNT(*) as total FROM mhs WHERE nama LIKE ? OR nim LIKE ?");
             $stmt->bind_param("ss", $search, $search);
             $stmt->execute();
             $totalResult = $stmt->get_result()->fetch_assoc();
             $totalRecords = $totalResult['total'];
             $totalPages = ceil($totalRecords / $limit);
-
+        
             respondWithJson(['data' => $data, 'totalPages' => $totalPages]);
             break;
-
+        
 
         case 'check_nim':
             $nim = $_POST['nim'] ?? '';
