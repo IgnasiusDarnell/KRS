@@ -3,7 +3,7 @@ require_once '../conn.php';
 startSecureSession();
 
 if (isLoggedIn()) {
-    header('Location: ../mahasiswa/index.php');
+    header('Location: ../index.php');
     exit;
 }
 
@@ -30,7 +30,7 @@ if (isset($_POST['login'])) {
     if ($user) {
         $_SESSION['iduser'] = $user['iduser'];
         $_SESSION['username'] = $user['username'];
-        header('Location: ../mahasiswa/index.php');
+        header('Location: ../index.php');
         exit;
     } else {
         $error = "Invalid username or password!";

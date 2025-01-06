@@ -4,265 +4,208 @@ startSecureSession();
 requireLogin();
 $current_page = 'Dosen ' . basename($_SERVER['PHP_SELF']);
 $username = $_SESSION['username'];
-function getHomebaseOptions()
-{
-    return [
-        'TI' => 'A11',
-        'SI' => 'A12',
-    ];
-}
-
-$homebaseOptions = getHomebaseOptions();
 ?>
 
 <!DOCTYPE html>
 <html lang="en">
-
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Data Dosen</title>
-    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/twitter-bootstrap/4.6.2/css/bootstrap.min.css">
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/twitter-bootstrap/4.6.2/js/bootstrap.bundle.min.js"></script>
+    <title>Manajemen Data Dosen</title>
+    <!-- CSS Dependencies -->
+    <link href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css" rel="stylesheet">
     <link rel="stylesheet" href="../menu.css">
+    <link rel="stylesheet" href="style.css">
 </head>
 
 <body>
-    <?php
-    require "../menu.html";
-    ?>
+    <?php require "../menu.html"; ?>
+
+    <!-- Loading Spinner -->
+    <div class="spinner-overlay" id="loadingSpinner">
+        <div class="loading-message">
+            <div class="spinner-border text-primary" role="status"></div>
+            <p class="mt-2">Loading...</p>
+        </div>
+    </div>
 
     <div class="container mt-5">
-        <h1 class="mb-4">Manajemen Data Dosen</h1>
-        <button class="btn btn-primary mb-2" id="add-new">Tambah Data Baru</button>
-        <button class="btn btn-danger mb-2" onclick="window.location.href='generate_pdf.php'">Cetak PDF</button>
-        <div class="mb-3">
-            <input type="text" id="search" class="form-control" placeholder="Cari dosen berdasarkan NPP atau nama...">
-        </div>
+        <div class="card p-4">
+            <!-- Header Section -->
+            <div class="d-flex justify-content-between align-items-center mb-4">
+                <h2 class="mb-0">
+                    <i class="fas fa-users mr-2 text-primary"></i>
+                    Data Dosen
+                </h2>
+                <div>
+                    <button class="btn btn-primary" id="btnAdd">
+                        <i class="fas fa-plus mr-2"></i>Tambah Dosen
+                    </button>
+                    <button class="btn btn-danger" id="btnGeneratePDF">
+                        <i class="fas fa-file-pdf mr-2"></i>Cetak PDF
+                    </button>
+                </div>
+            </div>
 
-        <div class="form-group">
-            <label for="recordsPerPage">Records per page:</label>
-            <select id="recordsPerPage" class="form-control" style="width: auto; display: inline-block;">
-                <option value="5" selected>5</option>
-                <option value="10">10</option>
-                <option value="15">15</option>
-                <option value="20">20</option>
-            </select>
-        </div>
-        <table class="table table-bordered">
-            <thead>
-                <tr>
-                    <th>NPP</th>
-                    <th>Nama Dosen</th>
-                    <th>Homebase</th>
-                    <th>Aksi</th>
-                </tr>
-            </thead>
-            <tbody id="data-table">
-                <!-- Data will be loaded here via AJAX -->
-            </tbody>
-        </table>
-
-        <nav>
-            <ul class="pagination justify-content-center" id="pagination">
-                <!-- Pagination buttons will be added here -->
-            </ul>
-        </nav>
-
-
-        <!-- Modal for Adding/Editing Data -->
-        <div class="modal fade" id="dataModal" tabindex="-1" role="dialog" aria-labelledby="dataModalLabel" aria-hidden="true">
-            <div class="modal-dialog" role="document">
-                <div class="modal-content">
-                    <div class="modal-header">
-                        <h5 class="modal-title" id="dataModalLabel">Tambah/Edit Data Dosen</h5>
-                        <button type="button" class="close" data-dismiss="modal" aria-label="Close">
-                            <span aria-hidden="true">&times;</span>
-                        </button>
+            <!-- Search and Filter Section -->
+            <div class="row mb-4">
+                <div class="col-md-6">
+                    <div class="search-container">
+                        <i class="fas fa-search"></i>
+                        <input type="text" 
+                               class="form-control" 
+                               id="search" 
+                               placeholder="Cari berdasarkan NPP atau nama..."
+                               autocomplete="off">
                     </div>
-                    <div class="modal-body">
-                        <form id="data-form">
-                            <input type="hidden" id="id">
+                </div>
+                <div class="col-md-3">
+                    <select id="recordsPerPage" class="form-control">
+                        <option value="5">5 records per page</option>
+                        <option value="10">10 records per page</option>
+                        <option value="15">15 records per page</option>
+                        <option value="20">20 records per page</option>
+                    </select>
+                </div>
+            </div>
 
-                            <div class="form-group">
-                                <label for="npp">NPP</label>
-                                <input type="text" id="npp" name="npp" class="form-control" required>
-                            </div>
+            <!-- Table Section -->
+            <div class="table-responsive">
+                <table class="table table-hover">
+                    <thead>
+                        <tr>
+                            <th>NPP</th>
+                            <th>Nama</th>
+                            <th>Homebase</th>
+                        </tr>
+                    </thead>
+                    <tbody id="dataDosen">
+                        <!-- Data will be loaded here -->
+                    </tbody>
+                </table>
+            </div>
 
-                            <div class="form-group">
-                                <label for="namadosen">Nama Dosen</label>
-                                <input type="text" id="namadosen" name="namadosen" class="form-control">
-                            </div>
+            <!-- Pagination Section -->
+            <div class="mt-4">
+                <div class="pagination-container" id="pagination"></div>
+                <div id="currentPageInfo" class="page-info"></div>
+            </div>
+        </div>
+    </div>
 
-                            <div class="form-group">
-                                <label for="homebase">Homebase</label>
-                                <select id="homebase" name="homebase" class="form-control">
-                                    <option value="">Pilih Homebase</option>
-                                    <?php foreach ($homebaseOptions as $code => $name): ?>
-                                        <option value="<?php echo $code; ?>"><?php echo $name; ?></option>
-                                    <?php endforeach; ?>
-                                </select>
-                            </div>
+    <!-- Modal Form -->
+    <div class="modal fade" id="dosenModal" tabindex="-1" role="dialog">
+        <div class="modal-dialog modal-dialog-centered" role="document">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="dosenModalLabel">
+                        <i class="fas fa-user-plus mr-2"></i>
+                        <span id="modalTitle">Tambah Dosen</span>
+                    </h5>
+                    <button type="button" class="close" data-dismiss="modal">
+                        <span aria-hidden="true">&times;</span>
+                    </button>
+                </div>
+                <div class="modal-body">
+                    <form id="formDosen" enctype="multipart/form-data">
+                        <input type="hidden" name="action" value="save">
+                        <input type="hidden" name="id" id="id">
+                        
+                        <div class="form-group">
+                            <label>
+                                <i class="fas fa-id-card mr-2"></i>NPP:
+                            </label>
+                            <input type="text" 
+                                class="form-control" 
+                                name="npp" 
+                                id="npp" 
+                                required 
+                                pattern="[0-9]{4}\.[0-9]{2}\.[0-9]{4}\.[0-9]{3}"
+                                placeholder="e.g., 0686.11.1997.1365"
+                                autocomplete="off">
+                            <small class="form-text text-muted">Format: 0686.11.1993.003</small>
+                        </div>
 
-                            <button type="submit" class="btn btn-success">Simpan</button>
-                        </form>
-                    </div>
+                        <div class="form-group">
+                            <label>
+                                <i class="fas fa-user mr-2"></i>Nama:
+                            </label>
+                            <input type="text" 
+                                   class="form-control" 
+                                   name="namadosen" 
+                                   id="namadosen" 
+                                   required>
+                        </div>
+
+                        <div class="form-group">
+                            <label>
+                                <i class="fas fa-envelope mr-2"></i>homebase:
+                            </label>
+                            <select class="form-control" id="homebase" name="homebase" required>
+                            <option value="A11">A11</option>
+                            <option value="A12">A12</option>
+                        </select>
+                        </div>
+                    </form>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-dismiss="modal">
+                        <i class="fas fa-times mr-2"></i>Batal
+                    </button>
+                    <button type="button" class="btn btn-primary" id="btnSave">
+                        <i class="fas fa-save mr-2"></i>Simpan
+                    </button>
                 </div>
             </div>
         </div>
     </div>
 
+    <!-- JavaScript Dependencies -->
+    <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.5.1/jquery.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/popper.js@1.16.1/dist/umd/popper.min.js"></script>
+    <script src="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/js/bootstrap.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/bs-custom-file-input/1.3.4/bs-custom-file-input.min.js"></script>
+    <script src="main.js"></script>
+
     <script>
         $(document).ready(function() {
-            const apiUrl = 'proses.php';
-            let currentPage = 1;
-            let recordsPerPage = $('#recordsPerPage').val();
-
-            function loadTable(query = '', page = 1, limit = recordsPerPage) {
-                $.post(apiUrl, {
-                    action: 'load',
-                    query,
-                    page,
-                    limit
-                }, function(response) {
-                    const rows = response.data.map(row => `
-                        <tr>
-                            <td>${row.npp}</td>
-                            <td>${row.namadosen || ''}</td>
-                            <td>${row.homebase || ''}</td>
-                            <td>
-                                <button class="btn btn-warning btn-sm edit" data-npp="${row.npp}">Edit</button>
-                                <button class="btn btn-danger btn-sm delete" data-npp="${row.npp}">Hapus</button>
-                            </td>
-                        </tr>
-                    `);
-
-                    $('#data-table').html(rows);
-                    renderPagination(response.totalPages, page);
-                }, 'json');
+            // Show loading spinner
+            function showLoadingSpinner() {
+                $('#loadingSpinner').show();
             }
 
-            function renderPagination(totalPages, currentPage) {
-                let paginationHTML = '';
-
-                for (let i = 1; i <= totalPages; i++) {
-                    paginationHTML += `
-                        <li class="page-item ${i === currentPage ? 'active' : ''}">
-                            <a class="page-link" href="#" data-page="${i}">${i}</a>
-                        </li>
-                    `;
-                }
-
-                $('#pagination').html(paginationHTML);
+            // Hide loading spinner
+            function hideLoadingSpinner() {
+                $('#loadingSpinner').hide();
             }
 
-            $('#pagination').on('click', '.page-link', function(e) {
-                e.preventDefault();
-                currentPage = $(this).data('page');
-                const query = $('#search').val();
-                loadTable(query, currentPage, recordsPerPage);
-            });
-
-            $('#recordsPerPage').change(function() {
-                recordsPerPage = $(this).val();
-                loadTable($('#search').val(), 1, recordsPerPage);
-            });
-
-            $('#search').on('input', function() {
-                const query = $(this).val();
-                loadTable(query, 1, recordsPerPage);
-            });
-
-            $('#add-new').click(function() {
-                $('#data-form')[0].reset();
-                $('#id').val('');
-                $('#npp').prop('readonly', false);
-                $('#dataModal').modal('show');
-            });
-
-            $('#data-table').on('click', '.edit', function() {
-                const npp = $(this).data('npp');
-                $.post(apiUrl, {
-                    action: 'get_data',
-                    npp
-                }, function(response) {
-                    $('#id').val(response.npp);
-                    $('#npp').val(response.npp).prop('readonly', true);
-                    $('#namadosen').val(response.namadosen);
-                    $('#homebase').val(response.homebase);
-                    $('#dataModal').modal('show');
-                }, 'json');
-            });
-
-            $('#data-table').on('click', '.delete', function() {
-                if (confirm('Yakin ingin menghapus data ini?')) {
-                    const npp = $(this).data('npp');
-                    $.post(apiUrl, {
-                        action: 'delete',
-                        npp
-                    }, function(response) {
-                        alert(response.message);
-                        loadTable($('#search').val(), currentPage, recordsPerPage);
-                    }, 'json');
-                }
-            });
-
-            $('#data-form').submit(function(e) {
-                e.preventDefault();
-
-                const isEdit = $('#id').val() !== ''; // Check if we're in edit mode
-                const npp = $('#npp').val();
-                const namadosen = $('#namadosen').val();
-                const homebase = $('#homebase').val();
-
-                // Clear previous validation messages
-                $('.validation-error').remove();
-
-                // Perform custom validation
-                let hasError = false;
-
-                if (isEdit) {
-                    if (!npp) {
-                        $('#npp').after('<div class="text-danger validation-error">NPP is required.</div>');
-                        hasError = true;
+            // Handle Generate PDF button click
+            $('#btnGeneratePDF').click(function() {
+                Swal.fire({
+                    title: 'Pilih Opsi PDF',
+                    text: 'Apakah Anda ingin melihat atau mengunduh PDF?',
+                    icon: 'question',
+                    showCancelButton: true,
+                    confirmButtonText: '<i class="fas fa-eye mr-2"></i>Lihat PDF',
+                    cancelButtonText: '<i class="fas fa-download mr-2"></i>Unduh PDF',
+                    reverseButtons: true
+                }).then((result) => {
+                    if (result.isConfirmed) {
+                        // View PDF in the browser
+                        showLoadingSpinner();
+                        window.open('generate_pdf.php?action=view', '_blank');
+                        hideLoadingSpinner();
+                    } else if (result.dismiss === Swal.DismissReason.cancel) {
+                        // Download PDF
+                        showLoadingSpinner();
+                        window.location.href = 'generate_pdf.php?action=download';
+                        hideLoadingSpinner();
                     }
-
-                    if (!namadosen) {
-                        $('#namadosen').after('<div class="text-danger validation-error">Nama Dosen is required.</div>');
-                        hasError = true;
-                    }
-
-                    if (!homebase) {
-                        $('#homebase').after('<div class="text-danger validation-error">Homebase is required.</div>');
-                        hasError = true;
-                    }
-                }
-
-                if (hasError) {
-                    return;
-                }
-
-                const formData = {
-                    action: 'save',
-                    id: $('#id').val(),
-                    npp,
-                    namadosen,
-                    homebase,
-                };
-
-                $.post(apiUrl, formData, function(response) {
-                    alert(response.message);
-                    $('#dataModal').modal('hide');
-                    loadTable($('#search').val(), currentPage, recordsPerPage);
-                }, 'json').fail(function(xhr) {
-                    alert(xhr.responseJSON.error);
                 });
             });
-
-            loadTable();
         });
     </script>
 </body>
-
 </html>

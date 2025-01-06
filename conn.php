@@ -33,7 +33,8 @@ function isLoggedIn()
 function requireLogin()
 {
     if (!isLoggedIn()) {
-        header('Location: ../auth/index.php');
+        header('Location: udinus_krs/auth/index.php');
+        header("Location: /udinus_krs/auth/index.php");
         exit;
     }
 }

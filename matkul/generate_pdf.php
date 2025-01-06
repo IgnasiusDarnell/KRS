@@ -3,6 +3,9 @@ require '../tcpdf-main/tcpdf.php';
 require '../conn.php';
 $conn = getDbConnection();
 
+// Check if the user wants to download or view the PDF
+$action = $_GET['action'] ?? 'view'; // Default to 'view' if no action is specified
+
 // Inisialisasi TCPDF
 class CustomPDF extends TCPDF
 {
@@ -13,7 +16,6 @@ class CustomPDF extends TCPDF
         $this->Cell(0, 10, 'Laporan Data Matakuliah', 0, 1, 'C');
         $this->SetFont('helvetica', '', 10);
         $this->SetTextColor(0, 0, 0);
-        $this->Cell(0, 5, 'Universitas Skuy Lancar - Tahun 2024', 0, 1, 'C');
         $this->Ln(5); // Spasi tambahan
     }
 
@@ -73,7 +75,6 @@ $tbl_header = <<<EOD
         <th width="10%">SKS</th>
         <th width="15%">jenis</th>
         <th width="15%">semester</th>
-
     </tr>
 EOD;
 
@@ -106,5 +107,11 @@ $html = $tbl_header . $tbl_content . $tbl_footer;
 // Cetak Tabel ke PDF
 $pdf->writeHTML($html, true, false, true, false, 'C');
 
-// Output PDF
-$pdf->Output('Laporan_Data_Matkul.pdf', 'D');
+// Output PDF berdasarkan pilihan user
+if ($action === 'download') {
+    // Download the PDF
+    $pdf->Output('Laporan_Data_Matkul.pdf', 'D');
+} else {
+    // View the PDF in the browser
+    $pdf->Output('Laporan_Data_Matkul.pdf', 'I');
+}

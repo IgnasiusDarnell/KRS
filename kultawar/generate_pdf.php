@@ -3,6 +3,9 @@ require '../tcpdf-main/tcpdf.php';
 require '../conn.php';
 $conn = getDbConnection();
 
+$action = $_GET['action'] ?? 'view';
+
+
 // Inisialisasi TCPDF
 $pdf = new TCPDF();
 $pdf->AddPage();
@@ -97,7 +100,13 @@ $tbl_footer = "</table>";
 $html = $tbl_header . $tbl_content . $tbl_footer;
 
 // Cetak Tabel ke PDF
-$pdf->writeHTML($html, true, false, true, false, '');
+$pdf->writeHTML($html, true, false, true, false, 'C');
 
-// Output PDF
-$pdf->Output('Laporan_Kuliah_Tawar.pdf', 'D');
+// Output PDF berdasarkan pilihan user
+if ($action === 'download') {
+    // Download the PDF
+    $pdf->Output('Laporan_Data_Matkul.pdf', 'D');
+} else {
+    // View the PDF in the browser
+    $pdf->Output('Laporan_Data_Matkul.pdf', 'I');
+}

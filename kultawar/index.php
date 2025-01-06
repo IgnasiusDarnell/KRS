@@ -1,303 +1,261 @@
 <?php
-session_start();
-require '../conn.php';
-$conn = getDbConnection();
-
-// Set the page title
+require_once '../conn.php';
+startSecureSession();
+requireLogin();
 $current_page = 'Kultawar ' . basename($_SERVER['PHP_SELF']);
-
-// Pagination Variables
-$records_per_page = isset($_GET['per_page']) ? (int)$_GET['per_page'] : 10; // Default records per page
-$current_page_num = isset($_GET['page']) ? (int)$_GET['page'] : 1; // Default current page
-
-// Get total records
-$total_records_sql = "SELECT COUNT(*) AS total FROM kultawar";
-$total_result = $conn->query($total_records_sql);
-$total_records = $total_result->fetch_assoc()['total'];
-
-// Calculate pagination values
-$total_pages = ceil($total_records / $records_per_page);
-$offset = ($current_page_num - 1) * $records_per_page;
-
-// Fetch records for the current page
-$sql = "SELECT * FROM kultawar ORDER BY idkultawar ASC LIMIT ? OFFSET ?";
-$stmt = $conn->prepare($sql);
-$stmt->bind_param("ii", $records_per_page, $offset);
-$stmt->execute();
-$result = $stmt->get_result();
-
-// Check for messages in session
-$message = isset($_SESSION['message']) ? $_SESSION['message'] : '';
-unset($_SESSION['message']);
+$username = $_SESSION['username'];
 ?>
 
 <!DOCTYPE html>
 <html lang="en">
-
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Table Kultawar</title>
+    <title>Manajemen Kultawar</title>
+    <!-- CSS Dependencies -->
+    <link href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css" rel="stylesheet">
     <link rel="stylesheet" href="../menu.css">
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css">
-    <style>
-        .custom-alert {
-            position: fixed;
-            top: 10%;
-            left: 50%;
-            transform: translate(-50%, 0);
-            z-index: 1050;
-            display: none;
-            animation: fade-in 1s ease-in-out forwards, fade-out 1s ease-in-out 2.5s forwards;
-        }
-
-        @keyframes fade-in {
-            from {
-                opacity: 0;
-            }
-
-            to {
-                opacity: 1;
-            }
-        }
-
-        @keyframes fade-out {
-            to {
-                opacity: 0;
-            }
-        }
-    </style>
+    <link rel="stylesheet" href="style.css">
 </head>
-<?php require "../menu.html"; ?>
-
 <body>
-    <div class="container mt-5">
-        <!-- Display Success or Error Messages -->
-        <?php if ($message): ?>
-            <div class="alert alert-success custom-alert" role="alert">
-                <?= htmlspecialchars($message) ?>
-            </div>
-        <?php endif; ?>
+    <?php require "../menu.html"; ?>
 
-        <h1 class="text-center mb-4">Data Kultawar</h1>
-        <a href="input.php" class="btn btn-primary mb-3">Tambah Data</a>
-        <button class="btn btn-danger mb-3" onclick="window.location.href='generate_pdf.php'">Cetak PDF</button>
-        <input type="text" id="liveSearch" class="form-control" placeholder="Cari Data..." style="width: 300px;">
-
-        <div class="mb-3">
-            <!-- Pagination Controls -->
-            <form method="GET" class="d-flex align-items-center">
-                <label for="perPage" class="me-2">Tampilkan:</label>
-                <select name="per_page" id="perPage" class="form-select me-3" style="width: auto;" onchange="this.form.submit()">
-                    <option value="5" <?= $records_per_page == 5 ? 'selected' : '' ?>>5</option>
-                    <option value="10" <?= $records_per_page == 10 ? 'selected' : '' ?>>10</option>
-                    <option value="20" <?= $records_per_page == 20 ? 'selected' : '' ?>>20</option>
-                </select>
-                <input type="hidden" name="page" value="1">
-            </form>
+    <!-- Loading Spinner -->
+    <div class="spinner-overlay" id="loadingSpinner">
+        <div class="loading-message">
+            <div class="spinner-border text-primary" role="status"></div>
+            <p class="mt-2">Loading...</p>
         </div>
-
-        <!-- Data Table -->
-        <table class="table table-bordered">
-            <thead>
-                <tr>
-                    <th>ID</th>
-                    <th>Kelompok</th>
-                    <th>Hari</th>
-                    <th>Jam Kuliah</th>
-                    <th>Ruang</th>
-                    <th>ID Matkul</th>
-                    <th>NPP</th>
-                    <th>Aksi</th>
-                </tr>
-            </thead>
-            <tbody>
-                <?php if ($result->num_rows > 0): ?>
-                    <?php while ($row = $result->fetch_assoc()): ?>
-                        <tr>
-                            <td><?= $row['idkultawar'] ?></td>
-                            <td><?= htmlspecialchars($row['klp']) ?></td>
-                            <td><?= htmlspecialchars($row['hari']) ?></td>
-                            <td><?= htmlspecialchars($row['jamkul']) ?></td>
-                            <td><?= htmlspecialchars($row['ruang']) ?></td>
-                            <td><?= htmlspecialchars($row['idmatkul']) ?></td>
-                            <td><?= htmlspecialchars($row['npp']) ?></td>
-                            <td>
-                                <button class="btn btn-warning btn-edit"
-                                    data-id="<?= $row['idkultawar'] ?>"
-                                    data-klp="<?= htmlspecialchars($row['klp']) ?>"
-                                    data-hari="<?= htmlspecialchars($row['hari']) ?>"
-                                    data-jamkul="<?= htmlspecialchars($row['jamkul']) ?>"
-                                    data-ruang="<?= htmlspecialchars($row['ruang']) ?>"
-                                    data-idmatkul="<?= htmlspecialchars($row['idmatkul']) ?>"
-                                    data-npp="<?= htmlspecialchars($row['npp']) ?>"
-                                    data-bs-toggle="modal" data-bs-target="#editModal">
-                                    Edit
-                                </button>
-                                <form action="proses.php" method="POST" class="d-inline">
-                                    <input type="hidden" name="idkultawar" value="<?= $row['idkultawar'] ?>">
-                                    <input type="hidden" name="action" value="delete">
-                                    <button type="submit" class="btn btn-danger" onclick="return confirm('Apakah Anda yakin ingin menghapus data ini?')">Hapus</button>
-                                </form>
-                            </td>
-                        </tr>
-                    <?php endwhile; ?>
-                <?php else: ?>
-                    <tr>
-                        <td colspan="8" class="text-center">Tidak ada data tersedia</td>
-                    </tr>
-                <?php endif; ?>
-            </tbody>
-        </table>
-
-        <!-- Pagination Links -->
-        <nav>
-            <ul class="pagination justify-content-center">
-                <li class="page-item <?= $current_page_num <= 1 ? 'disabled' : '' ?>">
-                    <a class="page-link" href="?page=<?= $current_page_num - 1 ?>&per_page=<?= $records_per_page ?>">Sebelumnya</a>
-                </li>
-                <?php for ($i = 1; $i <= $total_pages; $i++): ?>
-                    <li class="page-item <?= $i == $current_page_num ? 'active' : '' ?>">
-                        <a class="page-link" href="?page=<?= $i ?>&per_page=<?= $records_per_page ?>"><?= $i ?></a>
-                    </li>
-                <?php endfor; ?>
-                <li class="page-item <?= $current_page_num >= $total_pages ? 'disabled' : '' ?>">
-                    <a class="page-link" href="?page=<?= $current_page_num + 1 ?>&per_page=<?= $records_per_page ?>">Berikutnya</a>
-                </li>
-            </ul>
-        </nav>
     </div>
 
-    <!-- Modal for Editing -->
-    <div class="modal fade" id="editModal" tabindex="-1" aria-labelledby="editModalLabel" aria-hidden="true">
-        <div class="modal-dialog">
+    <div class="container mt-5">
+        <div class="card p-4">
+            <!-- Header Section -->
+            <div class="d-flex justify-content-between align-items-center mb-4">
+                <h2 class="mb-0">
+                    <i class="fas fa-calendar-alt mr-2 text-primary"></i>
+                    Data Kultawar
+                </h2>
+                <div>
+                    <button class="btn btn-primary" id="btnAdd">
+                        <i class="fas fa-plus mr-2"></i>Tambah Kultawar
+                    </button>
+                    <button class="btn btn-danger" id="btnGeneratePDF">
+                        <i class="fas fa-file-pdf mr-2"></i>Cetak PDF
+                    </button>
+                </div>
+            </div>
+
+            <!-- Search and Filter Section -->
+            <div class="row mb-4">
+                <div class="col-md-6">
+                    <div class="search-container">
+                        <i class="fas fa-search"></i>
+                        <input type="text" 
+                               class="form-control" 
+                               id="search" 
+                               placeholder="Cari berdasarkan mata kuliah atau dosen..."
+                               autocomplete="off">
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <select id="filterKlp" class="form-control">
+                        <option value="">Semua Kelompok</option>
+                        <option value="A12.6201">A12.62</option>
+                        <option value="A12.6301">A12.63</option>
+                        <option value="A12.6701">A12.67</option>
+                    </select>
+                </div>
+                <div class="col-md-3">
+                    <select id="recordsPerPage" class="form-control">
+                        <option value="5">5 records per page</option>
+                        <option value="10">10 records per page</option>
+                        <option value="15">15 records per page</option>
+                        <option value="20">20 records per page</option>
+                    </select>
+                </div>
+                <div class="col-md-3">
+                    <select id="filterHari" class="form-control">
+                        <option value="">Semua Hari</option>
+                        <option value="Senin">Senin</option>
+                        <option value="Selasa">Selasa</option>
+                        <option value="Rabu">Rabu</option>
+                        <option value="Kamis">Kamis</option>
+                        <option value="Jumat">Jumat</option>
+                    </select>
+                </div>
+            </div>
+
+            <!-- Table Section -->
+            <div class="table-responsive">
+                <table class="table table-hover">
+                    <thead>
+                        <tr>
+                            <th>ID</th>
+                            <th>Mata Kuliah</th>
+                            <th>Dosen</th>
+                            <th>Kelompok</th>
+                            <th>Hari</th>
+                            <th>Jam</th>
+                            <th>Ruang</th>
+                            <th>Aksi</th>
+                        </tr>
+                    </thead>
+                    <tbody id="dataKultawar">
+                        <!-- Data will be loaded here -->
+                    </tbody>
+                </table>
+            </div>
+
+            <!-- Pagination Section -->
+            <div class="mt-4">
+                <div class="pagination-container" id="pagination"></div>
+                <div id="currentPageInfo" class="page-info"></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal Form -->
+    <div class="modal fade" id="kultawarModal" tabindex="-1" role="dialog">
+        <div class="modal-dialog modal-dialog-centered" role="document">
             <div class="modal-content">
                 <div class="modal-header">
-                    <h5 class="modal-title" id="editModalLabel">Edit Data Kultawar</h5>
-                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                    <h5 class="modal-title" id="kultawarModalLabel">
+                        <i class="fas fa-calendar-alt mr-2"></i>
+                        <span id="modalTitle">Tambah Kultawar</span>
+                    </h5>
+                    <button type="button" class="close" data-dismiss="modal">
+                        <span aria-hidden="true">&times;</span>
+                    </button>
                 </div>
                 <div class="modal-body">
-                    <form id="editForm" method="POST" action="proses.php">
-                        <input type="hidden" name="idkultawar" id="editId">
-                        <input type="hidden" name="action" value="edit">
-                        <div class="mb-3">
-                            <label for="editKlp" class="form-label">Kelompok</label>
-                            <input type="text" class="form-control" id="editKlp" name="klp" required>
+                    <form id="formKultawar" enctype="multipart/form-data">
+                        <input type="hidden" name="action" value="save">
+                        <input type="hidden" name="idkultawar" id="idkultawar">
+                        
+                        <div class="form-group">
+                            <label>
+                                <i class="fas fa-book mr-2"></i>Mata Kuliah:
+                            </label>
+                            <select class="form-control" id="idmatkul" name="idmatkul" required>
+                                <!-- Options will be populated by JavaScript -->
+                            </select>
                         </div>
-                        <div class="mb-3">
-                            <label for="editHari" class="form-label">Hari</label>
-                            <input type="text" class="form-control" id="editHari" name="hari" required>
+
+                        <div class="form-group">
+                            <label>
+                                <i class="fas fa-user-tie mr-2"></i>Dosen:
+                            </label>
+                            <select class="form-control" id="npp" name="npp" required>
+                                <!-- Options will be populated by JavaScript -->
+                            </select>
                         </div>
-                        <div class="mb-3">
-                            <label for="editJamkul" class="form-label">Jam Kuliah</label>
-                            <input type="text" class="form-control" id="editJamkul" name="jamkul" required>
+
+                        <div class="form-group">
+                            <label>
+                                <i class="fas fa-users mr-2"></i>Kelompok:
+                            </label>
+                            <input type="text" 
+                                   class="form-control" 
+                                   name="klp" 
+                                   id="klp" 
+                                   required>
                         </div>
-                        <div class="mb-3">
-                            <label for="editRuang" class="form-label">Ruang</label>
-                            <input type="text" class="form-control" id="editRuang" name="ruang" required>
+
+                        <div class="form-group">
+                            <label>
+                                <i class="fas fa-calendar-day mr-2"></i>Hari:
+                            </label>
+                            <select class="form-control" id="hari" name="hari" required>
+                                <option value="Senin">Senin</option>
+                                <option value="Selasa">Selasa</option>
+                                <option value="Rabu">Rabu</option>
+                                <option value="Kamis">Kamis</option>
+                                <option value="Jumat">Jumat</option>
+                            </select>
                         </div>
-                        <div class="mb-3">
-                            <label for="editIdmatkul" class="form-label">ID Matkul</label>
-                            <input type="text" class="form-control" id="editIdmatkul" name="idmatkul" required>
+
+                        <div class="form-group">
+                            <label>
+                                <i class="fas fa-clock mr-2"></i>Jam:
+                            </label>
+                            <input type="text" 
+                                   class="form-control" 
+                                   name="jamkul" 
+                                   id="jamkul" 
+                                   placeholder="e.g., 07.00-08.40"
+                                   required>
                         </div>
-                        <div class="mb-3">
-                            <label for="editNpp" class="form-label">NPP</label>
-                            <input type="text" class="form-control" id="editNpp" name="npp" required>
+
+                        <div class="form-group">
+                            <label>
+                                <i class="fas fa-building mr-2"></i>Ruang:
+                            </label>
+                            <input type="text" 
+                                   class="form-control" 
+                                   name="ruang" 
+                                   id="ruang" 
+                                   placeholder="e.g., H.5.5">
                         </div>
-                        <button type="submit" class="btn btn-primary">Simpan</button>
                     </form>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-dismiss="modal">
+                        <i class="fas fa-times mr-2"></i>Batal
+                    </button>
+                    <button type="button" class="btn btn-primary" id="btnSave">
+                        <i class="fas fa-save mr-2"></i>Simpan
+                    </button>
                 </div>
             </div>
         </div>
     </div>
 
-    <!-- JavaScript for Modal Handling -->
-    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
-    <!-- JavaScript for Live Search -->
-    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    <!-- JavaScript Dependencies -->
+    <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.5.1/jquery.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/popper.js@1.16.1/dist/umd/popper.min.js"></script>
+    <script src="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/js/bootstrap.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+    <script src="main.js"></script>
+
     <script>
         $(document).ready(function() {
-            $("#liveSearch").on("input", function() {
-                const query = $(this).val();
+            // Show loading spinner
+            function showLoadingSpinner() {
+                $('#loadingSpinner').show();
+            }
 
-                $.ajax({
-                    url: "search.php",
-                    method: "GET",
-                    data: {
-                        search: query
-                    },
-                    dataType: "json",
-                    success: function(data) {
-                        const tbody = $("table tbody");
-                        tbody.empty();
+            // Hide loading spinner
+            function hideLoadingSpinner() {
+                $('#loadingSpinner').hide();
+            }
 
-                        if (data.length === 0) {
-                            tbody.append("<tr><td colspan='8' class='text-center'>Tidak ada data ditemukan</td></tr>");
-                        } else {
-                            data.forEach(row => {
-                                tbody.append(`
-                                    <tr>
-                                        <td>${row.idkultawar}</td>
-                                        <td>${row.klp}</td>
-                                        <td>${row.hari}</td>
-                                        <td>${row.jamkul}</td>
-                                        <td>${row.ruang}</td>
-                                        <td>${row.idmatkul}</td>
-                                        <td>${row.npp}</td>
-                                        <td>
-                                            <button class="btn btn-warning btn-edit"
-                                                data-id="${row.idkultawar}"
-                                                data-klp="${row.klp}"
-                                                data-hari="${row.hari}"
-                                                data-jamkul="${row.jamkul}"
-                                                data-ruang="${row.ruang}"
-                                                data-idmatkul="${row.idmatkul}"
-                                                data-npp="${row.npp}"
-                                                data-bs-toggle="modal" data-bs-target="#editModal">
-                                                Edit
-                                            </button>
-                                            <form action="proses.php" method="POST" class="d-inline">
-                                                <input type="hidden" name="idkultawar" value="${row.idkultawar}">
-                                                <input type="hidden" name="action" value="delete">
-                                                <button type="submit" class="btn btn-danger" onclick="return confirm('Apakah Anda yakin ingin menghapus data ini?')">Hapus</button>
-                                            </form>
-                                        </td>
-                                    </tr>
-                                `);
-                            });
-                        }
-                    },
-                    error: function() {
-                        alert("Terjadi kesalahan pada server.");
+            // Handle Generate PDF button click
+            $('#btnGeneratePDF').click(function() {
+                Swal.fire({
+                    title: 'Pilih Opsi PDF',
+                    text: 'Apakah Anda ingin melihat atau mengunduh PDF?',
+                    icon: 'question',
+                    showCancelButton: true,
+                    confirmButtonText: '<i class="fas fa-eye mr-2"></i>Lihat PDF',
+                    cancelButtonText: '<i class="fas fa-download mr-2"></i>Unduh PDF',
+                    reverseButtons: true
+                }).then((result) => {
+                    if (result.isConfirmed) {
+                        // View PDF in the browser
+                        showLoadingSpinner();
+                        window.open('generate_pdf.php?action=view', '_blank');
+                        hideLoadingSpinner();
+                    } else if (result.dismiss === Swal.DismissReason.cancel) {
+                        // Download PDF
+                        showLoadingSpinner();
+                        window.location.href = 'generate_pdf.php?action=download';
+                        hideLoadingSpinner();
                     }
                 });
             });
         });
     </script>
-
-    <script>
-        const editButtons = document.querySelectorAll('.btn-edit');
-        editButtons.forEach(button => {
-            button.addEventListener('click', () => {
-                document.getElementById('editId').value = button.dataset.id;
-                document.getElementById('editKlp').value = button.dataset.klp;
-                document.getElementById('editHari').value = button.dataset.hari;
-                document.getElementById('editJamkul').value = button.dataset.jamkul;
-                document.getElementById('editRuang').value = button.dataset.ruang;
-                document.getElementById('editIdmatkul').value = button.dataset.idmatkul;
-                document.getElementById('editNpp').value = button.dataset.npp;
-            });
-        });
-
-        // Show alert for 3 seconds
-        const alertBox = document.querySelector('.custom-alert');
-        if (alertBox) {
-            alertBox.style.display = 'block';
-            setTimeout(() => {
-                alertBox.style.display = 'none';
-            }, 3000);
-        }
-    </script>
 </body>
-
 </html>
