@@ -197,5 +197,44 @@ $username = $_SESSION['username'];
     <script src="https://cdnjs.cloudflare.com/ajax/libs/bs-custom-file-input/1.3.4/bs-custom-file-input.min.js"></script>
     <script src="main.js"></script>
 
+    <script>
+        $(document).ready(function() {
+            // Show loading spinner
+            function showLoadingSpinner() {
+                $('#loadingSpinner').show();
+            }
+
+            // Hide loading spinner
+            function hideLoadingSpinner() {
+                $('#loadingSpinner').hide();
+            }
+
+            // Handle Generate PDF button click
+            $('#btnGeneratePDF').click(function() {
+                Swal.fire({
+                    title: 'Pilih Opsi PDF',
+                    text: 'Apakah Anda ingin melihat atau mengunduh PDF?',
+                    icon: 'question',
+                    showCancelButton: true,
+                    confirmButtonText: '<i class="fas fa-eye mr-2"></i>Lihat PDF',
+                    cancelButtonText: '<i class="fas fa-download mr-2"></i>Unduh PDF',
+                    reverseButtons: true
+                }).then((result) => {
+                    if (result.isConfirmed) {
+                        // View PDF in the browser
+                        showLoadingSpinner();
+                        window.open('generate_pdf.php?action=view', '_blank');
+                        hideLoadingSpinner();
+                    } else if (result.dismiss === Swal.DismissReason.cancel) {
+                        // Download PDF
+                        showLoadingSpinner();
+                        window.location.href = 'generate_pdf.php?action=download';
+                        hideLoadingSpinner();
+                    }
+                });
+            });
+        });
+    </script>
+    
 </body>
 </html>

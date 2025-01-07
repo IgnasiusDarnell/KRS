@@ -1,2 +1,3 @@
 photo/*
+!photo/.gitkeep
 TCPDF-main/*

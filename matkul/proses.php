@@ -20,8 +20,8 @@ function validateSKS($sks) {
 }
 
 function validateJenis($jns) {
-    // Validate jenis is either 'T' or 'T/P'
-    return in_array($jns, ['T', 'T/P']);
+    // Validate jenis is either 'T' or 'T/P' or 'P'
+    return in_array($jns, ['T', 'T/P', 'P']);
 }
 
 function validateSemester($smt) {
